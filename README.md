@@ -1,36 +1,32 @@
 # COCO Viewer
 
-COCO Viewer is a web-based GUI application for visualizing COCO format datasets.
-It is designed to be extensible to support various annotation tasks, starting with object detection.
+A modern, performant web-based GUI application for visualizing COCO format datasets, built with FastAPI and React (MUI).
 
 ## Features
 
-- **Web-based Interface:** Access the viewer from your browser.
-- **COCO Format Support:** Load and parse COCO annotation files (JSON).
-- **Object Detection Visualization:** View images with bounding box annotations.
-- **Extensible Design:** The application is designed to be easily extended to support other tasks like segmentation and keypoint detection.
+-   **Modern UI:** A sleek, responsive interface built with Material-UI (MUI), featuring a dark mode theme.
+-   **Local Image Directory Support:** Securely browse and visualize images directly from your local filesystem.
+-   **Dynamic Bounding Box Colors:** Bounding boxes are automatically colored by category for clear and intuitive visualization.
+-   **Context-Aware Legend:** A category legend (chips) dynamically displays only the categories present in the currently viewed image.
+-   **High Performance:** Optimized data loading and rendering pipeline to ensure a smooth experience, even with large datasets. All annotations are fetched at once to eliminate lag when switching between images.
+-   **Extensible Design:** The application is designed to be easily extended to support other tasks like segmentation and keypoint detection.
 
 ## Project Structure
 
 ```bash
 coco_viewer/
 ├── backend/              # FastAPI application
-│   ├── .venv/              # Virtual environment created by uv
+│   ├── .venv/              # Virtual environment managed by uv
 │   ├── app/
-│   │   ├── __init__.py
 │   │   ├── main.py         # API endpoint definitions
 │   │   └── services/
-│   │       └── coco_parser.py  # COCO dataset parsing logic
+│   │       └── coco_parser.py  # (Currently unused, for future extension)
 │   └── pyproject.toml      # Project metadata and dependencies
 ├── frontend/             # React application
-│   ├── public/
 │   ├── src/
 │   │   ├── components/
 │   │   │   └── ImageViewer.tsx
-│   │   ├── App.css
-│   │   ├── App.tsx
-│   │   └── ...
-│   ├── index.html
+│   │   └── App.tsx         # Main application component
 │   └── ...
 ├── .gitignore
 └── README.md
@@ -40,36 +36,41 @@ coco_viewer/
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or later)
-- [Python](https://www.python.org/) (v3.9 or later)
-- [uv](https://github.com/astral-sh/uv) (Python package installer)
+-   [Node.js](https://nodejs.org/) (v18 or later)
+-   [Python](https://www.python.org/) (v3.9 or later)
+-   [uv](https://github.com/astral-sh/uv) (A fast Python package installer and resolver)
 
 ### Installation & Running
 
-1. **Clone the repository:**
-
+1.  **Clone the repository:**
     ```bash
     git clone <repository_url>
     cd coco_viewer
     ```
 
-2. **Backend Setup:**
-
+2.  **Run the Backend Server:**
+    Open a terminal window.
     ```bash
     # Navigate to the backend directory
     cd backend
 
-    # Install dependencies from pyproject.toml
+    # Create and sync the virtual environment
+    uv venv
     uv sync
 
+    # Activate the virtual environment
+    # On macOS/Linux:
+    source .venv/bin/activate
+    # On Windows:
+    # .venv\Scripts\activate
+
     # Start the backend server
-    uv run uvicorn app.main:app --host 0.0.0.0 --port 8001
+    uvicorn app.main:app --host 0.0.0.0 --port 8000
     ```
+    The backend is now running on `http://localhost:8000`.
 
-3. **Frontend Setup:**
-
-    In a new terminal:
-
+3.  **Run the Frontend Application:**
+    Open a **new** terminal window.
     ```bash
     # Navigate to the frontend directory
     cd frontend
@@ -80,49 +81,29 @@ coco_viewer/
     # Start the frontend development server
     npm run dev
     ```
+    The frontend is now running, typically on `http://localhost:5173` or a similar port.
 
-4. **Access the application:**
-
-    Open your browser and go to `http://localhost:5173`.
+4.  **Access the Application:**
+    Open your browser and navigate to the URL provided by the `npm run dev` command.
 
 ## How to Use
 
-1. **Provide Image Directory URL:**
-    - Before uploading your annotation file, you need to provide a URL to the directory where your images are hosted. This could be a local server URL (e.g., `http://localhost:8080/images`) or a remote URL.
-    - For local images, you can start a simple HTTP server in your image directory. For example, using Python:
+1.  **Set Image Directory:**
+    -   In the sidebar, enter the **absolute path** to the local directory where your dataset images are stored.
+    -   Click the "Set Directory" button. The backend will now be able to serve these images to the application.
 
-        ```bash
-        # In your images directory
-        python -m http.server 8080
-        ```
+2.  **Load Annotation File:**
+    -   Click "Select Annotation File" and choose your COCO `*.json` file.
+    -   Click "Load Dataset". The application will load and process all annotations, images, and categories.
 
-    - Then, enter `http://localhost:8080` into the "Image Directory URL" input field.
-
-2. **Upload COCO Annotation File:**
-    - Click the "Choose File" button and select your COCO annotation file (in `.json` format).
-    - Click the "Upload" button.
-
-3. **View Images and Annotations:**
-    - Once the annotation file is loaded, a list of images will appear in the sidebar.
-    - Click on an image file name to display the image and its corresponding bounding box annotations.
+3.  **Explore the Dataset:**
+    -   The image list will populate in the sidebar.
+    -   Click on any image name to view it.
+    -   The viewer will display the image with bounding boxes colored by category. The legend above the image shows which colors correspond to which categories present in that specific image.
 
 ## API Documentation
 
-The backend API is built with FastAPI, which provides automatic interactive documentation.
+The backend API is built with FastAPI, which provides automatic interactive documentation. While the application is running, you can access it at:
 
-- **Swagger UI:** `http://localhost:8000/docs`
-- **ReDoc:** `http://localhost:8000/redoc`
-
-These interfaces allow you to explore and interact with the API endpoints.
-
-## Extensibility
-
-To extend the application to support other annotation tasks (e.g., segmentation):
-
-1. **Backend (`coco_parser.py`):**
-    - Implement a new parsing function (e.g., `parse_segmentation_annotations`).
-    - Update the `load_dataset` endpoint in `main.py` to call the new function.
-
-2. **Frontend (`ImageViewer.tsx`):**
-    - Update the component to receive and render the new annotation data (e.g., drawing polygons for segmentation).
+-   **Swagger UI:** `http://localhost:8000/docs`
 
