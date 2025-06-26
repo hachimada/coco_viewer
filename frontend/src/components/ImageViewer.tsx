@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import type { AnnotationsForImage, Image, Category } from '../types';
+import { usePanAndZoom } from '../hooks/usePanAndZoom';
 
 interface ImageViewerProps {
     image: Image;
@@ -16,11 +17,17 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, c
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // State for pan and zoom
-    const [scale, setScale] = useState(1);
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
-    const [isDragging, setIsDragging] = useState(false);
-    const [lastDragPosition, setLastDragPosition] = useState({ x: 0, y: 0 });
+    const { 
+        scale, 
+        offset, 
+        isDragging, 
+        handleMouseDown, 
+        handleMouseUp, 
+        handleMouseLeave, 
+        handleMouseMove, 
+        handleWheel, 
+        reset: resetPanAndZoom 
+    } = usePanAndZoom();
 
     const drawCanvas = useCallback(() => {
         const canvas = canvasRef.current;
@@ -30,13 +37,11 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, c
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Save context, apply transformations
         ctx.save();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.translate(offset.x, offset.y);
         ctx.scale(scale, scale);
 
-        // Draw the image
         ctx.drawImage(img, 0, 0);
 
         const categoryMap = new Map(categories.map(cat => [cat.id, cat]));
@@ -54,7 +59,6 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, c
             annotations.forEach(ann => {
                 const [x, y, width, height] = ann.bbox;
                 
-                // Adjust line width and font size based on scale
                 const lineWidth = 2 / scale;
                 const fontSize = 14 / scale;
 
@@ -77,11 +81,9 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, c
             });
         }
 
-        // Restore context
         ctx.restore();
     }, [offset, scale, categories, annotationsForImage, hiddenCategories]);
 
-    // Effect for loading the image
     useEffect(() => {
         setIsLoading(true);
         setError(null);
@@ -97,9 +99,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, c
                 canvas.width = img.naturalWidth;
                 canvas.height = img.naturalHeight;
             }
-            // Reset zoom/pan and trigger redraw by setting loading to false
-            setScale(1);
-            setOffset({ x: 0, y: 0 });
+            resetPanAndZoom();
             setIsLoading(false); 
         };
 
@@ -107,55 +107,13 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, c
             setIsLoading(false);
             setError(`Failed to load image from: ${imageUrl}`);
         }
-    }, [imageUrl]); // Only re-run when the image URL changes
+    }, [imageUrl, resetPanAndZoom]);
 
-    // Effect for re-drawing when data changes
     useEffect(() => {
         if (!isLoading && imageRef.current?.complete) {
             drawCanvas();
         }
     }, [isLoading, drawCanvas, hiddenCategories, annotationsForImage, categories]);
-
-    const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        setIsDragging(true);
-        setLastDragPosition({ x: e.clientX, y: e.clientY });
-    };
-
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
-
-    const handleMouseLeave = () => {
-        setIsDragging(false);
-    };
-
-    const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        if (!isDragging) return;
-        const deltaX = e.clientX - lastDragPosition.x;
-        const deltaY = e.clientY - lastDragPosition.y;
-        setOffset({ x: offset.x + deltaX, y: offset.y + deltaY });
-        setLastDragPosition({ x: e.clientX, y: e.clientY });
-    };
-
-    const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
-        e.preventDefault();
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        const scaleFactor = 1.1;
-        const newScale = e.deltaY < 0 ? scale * scaleFactor : scale / scaleFactor;
-        
-        // New offset to zoom towards the mouse point
-        const newOffsetX = mouseX - (mouseX - offset.x) * (newScale / scale);
-        const newOffsetY = mouseY - (mouseY - offset.y) * (newScale / scale);
-
-        setScale(newScale);
-        setOffset({ x: newOffsetX, y: newOffsetY });
-    };
 
     return (
         <Box sx={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab' }}>

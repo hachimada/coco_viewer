@@ -1,118 +1,41 @@
-import { useState, ChangeEvent, useMemo, useRef } from 'react';
+import { ChangeEvent, useRef } from 'react';
 import { 
     CssBaseline, Box, ThemeProvider, createTheme, AppBar, Toolbar, Typography, 
     Drawer, List, ListItem, ListItemButton, ListItemText, TextField, Button, 
-    CircularProgress, Alert, Paper, Chip, LinearProgress 
+    LinearProgress, Alert, Paper, Chip 
 } from '@mui/material';
 import { UploadFile as UploadFileIcon, FolderOpen as FolderOpenIcon } from '@mui/icons-material';
 import ImageViewer from './components/ImageViewer';
-import type { Image, CocoData, Category } from './types'; // Import from the new types file
+import { useAppContext } from './context/AppContext';
 
-// --- Main App Component ---
 const App = () => {
-    // --- State Management ---
-    const [imageDir, setImageDir] = useState<string>('');
-    const [file, setFile] = useState<File | null>(null);
-    const [cocoData, setCocoData] = useState<CocoData | null>(null);
-    const [selectedImage, setSelectedImage] = useState<Image | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const {
+        imageDir,
+        setImageDir,
+        file,
+        setFile,
+        cocoData,
+        selectedImage,
+        setSelectedImage,
+        loading,
+        error,
+        handleSetImageDir,
+        handleUpload,
+        hiddenCategories,
+        toggleCategoryVisibility,
+        annotationsForSelectedImage,
+        categoriesForSelectedImage,
+    } = useAppContext();
+
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [hiddenCategories, setHiddenCategories] = useState<Set<number>>(new Set());
-
-    // --- Event Handlers & Data Processing ---
-    const toggleCategoryVisibility = (categoryId: number) => {
-        setHiddenCategories(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(categoryId)) {
-                newSet.delete(categoryId);
-            } else {
-                newSet.add(categoryId);
-            }
-            return newSet;
-        });
-    };
-
-    const handleSetImageDir = async () => {
-        if (!imageDir) return;
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await fetch('http://localhost:8000/api/set_image_directory', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: imageDir }),
-            });
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.detail || 'Failed to set image directory.');
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             setFile(e.target.files[0]);
-            setCocoData(null);
-            setSelectedImage(null);
+            setSelectedImage(null); // Reset selection when new file is chosen
         }
     };
 
-    const handleUpload = async () => {
-        if (!file) return;
-        setLoading(true);
-        setError(null);
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-            const res = await fetch('http://localhost:8000/api/load_dataset', { method: 'POST', body: formData });
-            if (!res.ok) throw new Error('Failed to upload annotation file.');
-            const data = await res.json();
-
-            // Validate the new data structure
-            if (!data.images || !data.annotations_by_image || !data.categories) {
-                throw new Error('Invalid COCO file format: Missing required keys.');
-            }
-
-            const rawCategories = data.categories || [];
-            const categoriesWithColor = rawCategories.map((cat: any, index: number) => ({
-                ...cat,
-                color: `hsl(${(index * 137.508) % 360}, 60%, 55%)`
-            }));
-
-            setCocoData({ 
-                images: data.images, 
-                annotations_by_image: data.annotations_by_image, 
-                categories: categoriesWithColor 
-            });
-
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // --- Memoized Derived State (Optimized) ---
-    const annotationsForSelectedImage = useMemo(() => {
-        if (!cocoData || !selectedImage) return {};
-        return cocoData.annotations_by_image[selectedImage.id] || {};
-    }, [cocoData, selectedImage]);
-
-    const categoriesForSelectedImage = useMemo(() => {
-        if (!cocoData || !selectedImage) return [];
-        const categoryIds = Object.keys(annotationsForSelectedImage).map(Number);
-        const categoryIdSet = new Set(categoryIds);
-        return cocoData.categories.filter(cat => categoryIdSet.has(cat.id));
-    }, [cocoData, annotationsForSelectedImage]);
-
-
-    // --- UI Rendering ---
     const drawerWidth = 300;
     const theme = createTheme({
         palette: {
