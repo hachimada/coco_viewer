@@ -6,33 +6,7 @@ import {
 } from '@mui/material';
 import { UploadFile as UploadFileIcon, FolderOpen as FolderOpenIcon } from '@mui/icons-material';
 import ImageViewer from './components/ImageViewer';
-
-// --- Type Definitions ---
-interface Image {
-    id: number;
-    file_name: string;
-    width: number;
-    height: number;
-}
-
-interface Annotation {
-    id: number;
-    image_id: number;
-    category_id: number;
-    bbox: [number, number, number, number];
-}
-
-interface Category {
-    id: number;
-    name: string;
-    color: string;
-}
-
-interface CocoData {
-    images: Image[];
-    annotations: Annotation[];
-    categories: Category[];
-}
+import type { Image, CocoData, Category } from './types'; // Import from the new types file
 
 // --- Main App Component ---
 const App = () => {
@@ -44,8 +18,21 @@ const App = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [hiddenCategories, setHiddenCategories] = useState<Set<number>>(new Set());
 
-    // --- API Calls & Data Processing ---
+    // --- Event Handlers & Data Processing ---
+    const toggleCategoryVisibility = (categoryId: number) => {
+        setHiddenCategories(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(categoryId)) {
+                newSet.delete(categoryId);
+            } else {
+                newSet.add(categoryId);
+            }
+            return newSet;
+        });
+    };
+
     const handleSetImageDir = async () => {
         if (!imageDir) return;
         setLoading(true);
@@ -70,7 +57,6 @@ const App = () => {
     const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             setFile(e.target.files[0]);
-            // Reset state when a new file is chosen
             setCocoData(null);
             setSelectedImage(null);
         }
@@ -88,15 +74,12 @@ const App = () => {
             if (!res.ok) throw new Error('Failed to upload annotation file.');
             const data = await res.json();
 
-            // Validate the structure of the COCO data
-            if (!data.images || !data.annotations || !Array.isArray(data.images) || !Array.isArray(data.annotations)) {
-                throw new Error('Invalid COCO file format: Missing `images` or `annotations` array.');
+            // Validate the new data structure
+            if (!data.images || !data.annotations_by_image || !data.categories) {
+                throw new Error('Invalid COCO file format: Missing required keys.');
             }
 
-            // Categories are optional, but if they exist, they should be an array.
-            const rawCategories = (data.categories && Array.isArray(data.categories)) ? data.categories : [];
-            
-            // Process categories to add colors
+            const rawCategories = data.categories || [];
             const categoriesWithColor = rawCategories.map((cat: any, index: number) => ({
                 ...cat,
                 color: `hsl(${(index * 137.508) % 360}, 60%, 55%)`
@@ -104,7 +87,7 @@ const App = () => {
 
             setCocoData({ 
                 images: data.images, 
-                annotations: data.annotations, 
+                annotations_by_image: data.annotations_by_image, 
                 categories: categoriesWithColor 
             });
 
@@ -115,16 +98,17 @@ const App = () => {
         }
     };
 
-    // --- Memoized Derived State ---
+    // --- Memoized Derived State (Optimized) ---
     const annotationsForSelectedImage = useMemo(() => {
-        if (!cocoData || !selectedImage) return [];
-        return cocoData.annotations.filter(ann => ann.image_id === selectedImage.id);
+        if (!cocoData || !selectedImage) return {};
+        return cocoData.annotations_by_image[selectedImage.id] || {};
     }, [cocoData, selectedImage]);
 
     const categoriesForSelectedImage = useMemo(() => {
-        if (!cocoData || !annotationsForSelectedImage) return [];
-        const categoryIds = new Set(annotationsForSelectedImage.map(ann => ann.category_id));
-        return cocoData.categories.filter(cat => categoryIds.has(cat.id));
+        if (!cocoData || !selectedImage) return [];
+        const categoryIds = Object.keys(annotationsForSelectedImage).map(Number);
+        const categoryIdSet = new Set(categoryIds);
+        return cocoData.categories.filter(cat => categoryIdSet.has(cat.id));
     }, [cocoData, annotationsForSelectedImage]);
 
 
@@ -182,17 +166,32 @@ const App = () => {
                 <Box component="main" sx={{ flexGrow: 1, p: 3, height: '100vh', display: 'flex', flexDirection: 'column' }}>
                     <Toolbar />
                     {selectedImage ? (
-                        <Paper elevation={3} sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                        <Paper elevation={3} sx={{ p: 2, flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                             <Typography variant="h5" gutterBottom>{selectedImage.file_name}</Typography>
                             <Box mb={2}>
-                                {categoriesForSelectedImage.map(cat => <Chip key={cat.id} label={cat.name} sx={{ mr: 1, mb: 1, backgroundColor: cat.color, color: 'white' }} />)}
+                                {categoriesForSelectedImage.map(cat => (
+                                    <Chip 
+                                        key={cat.id} 
+                                        label={cat.name} 
+                                        onClick={() => toggleCategoryVisibility(cat.id)}
+                                        sx={{ 
+                                            mr: 1, 
+                                            mb: 1, 
+                                            backgroundColor: cat.color, 
+                                            color: 'white', 
+                                            opacity: hiddenCategories.has(cat.id) ? 0.5 : 1,
+                                            cursor: 'pointer',
+                                        }} 
+                                    />
+                                ))}
                             </Box>
                             <ImageViewer 
-                                key={selectedImage.id} // Add key to force re-mount on image change
+                                key={selectedImage.id}
                                 image={selectedImage} 
-                                annotations={annotationsForSelectedImage} 
+                                annotationsForImage={annotationsForSelectedImage} 
                                 categories={cocoData?.categories || []} 
                                 imageUrl={`http://localhost:8000/images/${selectedImage.file_name}`}
+                                hiddenCategories={hiddenCategories}
                             />
                         </Paper>
                     ) : (

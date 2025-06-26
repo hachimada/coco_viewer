@@ -2,13 +2,14 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Body
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any
+from collections import defaultdict
 import json
 import os
 
 app = FastAPI(
     title="COCO Viewer API",
     description="API for loading and interacting with COCO datasets.",
-    version="1.0.0",
+    version="1.1.0", # Version bump to reflect new data structure
 )
 
 origins = [
@@ -45,18 +46,37 @@ def set_image_directory(path: str = Body(..., embed=True)):
     app.mount("/images", StaticFiles(directory=path), name="images")
     return {"message": f"Image directory set to {path}"}
 
-@app.post("/api/load_dataset", summary="Load and Get Full Dataset")
+@app.post("/api/load_dataset", summary="Load and Process Dataset")
 async def load_dataset(file: UploadFile = File(..., description="The COCO annotation file (e.g., `instances_val2017.json`)")) -> Dict:
     """
-    Uploads a COCO annotation file and returns its raw JSON content.
-    The frontend is responsible for parsing and handling the data structure.
+    Uploads a COCO annotation file, processes it into an optimized structure,
+    and returns the structured data.
     """
     try:
         content = await file.read()
         data = json.loads(content)
-        return data
+
+        # --- Data Processing Logic ---
+        annotations_by_image = defaultdict(lambda: defaultdict(list))
+        for ann in data.get('annotations', []):
+            # Keep only necessary fields to reduce payload size
+            processed_ann = {
+                'id': ann['id'],
+                'bbox': ann['bbox']
+            }
+            annotations_by_image[ann['image_id']][ann['category_id']].append(processed_ann)
+
+        # --- Return new data structure ---
+        return {
+            "images": data.get('images', []),
+            "categories": data.get('categories', []),
+            "annotations_by_image": annotations_by_image,
+        }
+
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON file.")
+    except KeyError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid COCO format: Missing key {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
