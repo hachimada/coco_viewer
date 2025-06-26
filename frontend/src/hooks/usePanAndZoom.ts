@@ -57,7 +57,7 @@ export const usePanAndZoom = (options: PanAndZoomOptions = {}) => {
     const reset = useCallback(() => {
         setScale(initialScale);
         setOffset(initialOffset);
-    }, [initialScale, initialOffset]);
+    }, []);
 
     return {
         scale,
