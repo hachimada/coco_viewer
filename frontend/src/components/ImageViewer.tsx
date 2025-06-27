@@ -14,6 +14,7 @@ interface ImageViewerProps {
 const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, categories, imageUrl, hiddenCategories }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -84,6 +85,16 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, c
         ctx.restore();
     }, [offset, scale, categories, annotationsForImage, hiddenCategories]);
 
+    const resizeCanvas = useCallback(() => {
+        const canvas = canvasRef.current;
+        const container = containerRef.current;
+        if (canvas && container) {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            drawCanvas();
+        }
+    }, [drawCanvas]);
+
     useEffect(() => {
         setIsLoading(true);
         setError(null);
@@ -95,12 +106,18 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, c
 
         img.onload = () => {
             const canvas = canvasRef.current;
-            if (canvas) {
-                canvas.width = img.naturalWidth;
-                canvas.height = img.naturalHeight;
+            const container = containerRef.current;
+            if (canvas && container) {
+                const scaleX = container.clientWidth / img.naturalWidth;
+                const scaleY = container.clientHeight / img.naturalHeight;
+                const initialScale = Math.min(scaleX, scaleY);
+                
+                const initialOffsetX = (container.clientWidth - img.naturalWidth * initialScale) / 2;
+                const initialOffsetY = (container.clientHeight - img.naturalHeight * initialScale) / 2;
+
+                resetPanAndZoom({ scale: initialScale, offset: { x: initialOffsetX, y: initialOffsetY } });
             }
-            resetPanAndZoom();
-            setIsLoading(false); 
+            setIsLoading(false);
         };
 
         img.onerror = () => {
@@ -115,8 +132,24 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, c
         }
     }, [isLoading, drawCanvas, hiddenCategories, annotationsForImage, categories]);
 
+    useEffect(() => {
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        return () => window.removeEventListener('resize', resizeCanvas);
+    }, [resizeCanvas]);
+
     return (
-        <Box sx={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab' }}>
+        <Box 
+            ref={containerRef}
+            sx={{
+                width: '100%', 
+                height: '100%', 
+                overflow: 'hidden', 
+                cursor: isDragging ? 'grabbing' : 'grab',
+                backgroundColor: 'black',
+                position: 'relative',
+            }}
+        >
             {isLoading && <CircularProgress sx={{ position: 'absolute', top: '50%', left: '50%', marginTop: '-20px', marginLeft: '-20px' }} />}
             {error && <Typography color="error" sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>{error}</Typography>}
             <canvas 
@@ -128,9 +161,6 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, c
                 onWheel={handleWheel}
                 style={{ 
                     display: isLoading || error ? 'none' : 'block',
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'contain'
                 }} 
             />
         </Box>
