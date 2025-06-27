@@ -1,38 +1,30 @@
-import json
 from typing import Dict, Any
+from collections import defaultdict
 
-def parse_coco_annotations(annotations: Dict[str, Any]) -> Dict[str, Any]:
+def process_coco_dataset(data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Parses the root of a COCO annotation dictionary to extract summary information.
-
-    This function is designed to be extensible for different COCO tasks.
-    Currently, it provides a high-level overview of the dataset.
+    Processes raw COCO dataset dictionary into an optimized structure for the viewer.
 
     Args:
-        annotations: A dictionary representing the loaded COCO JSON data.
+        data: A dictionary representing the loaded COCO JSON data.
 
     Returns:
-        A dictionary containing summary information:
-        - info: The content of the 'info' section.
-        - licenses: The content of the 'licenses' section.
-        - num_images: The total number of images.
-        - num_annotations: The total number of annotations.
-        - num_categories: The total number of categories.
+        A dictionary containing:
+        - images: List of image metadata.
+        - categories: List of category metadata.
+        - annotations_by_image: A nested dictionary mapping image_id to category_id to a list of processed annotations.
     """
-    info = annotations.get("info", {})
-    licenses = annotations.get("licenses", [])
-    images = annotations.get("images", [])
-    annotations_data = annotations.get("annotations", [])
-    categories = annotations.get("categories", [])
-
-    # This is where you could add more specific parsers for different tasks
-    # For example, for object detection:
-    # object_detection_summary = parse_object_detection(annotations_data)
+    annotations_by_image = defaultdict(lambda: defaultdict(list))
+    for ann in data.get('annotations', []):
+        # Keep only necessary fields to reduce payload size
+        processed_ann = {
+            'id': ann['id'],
+            'bbox': ann['bbox']
+        }
+        annotations_by_image[ann['image_id']][ann['category_id']].append(processed_ann)
 
     return {
-        "info": info,
-        "licenses": licenses,
-        "num_images": len(images),
-        "num_annotations": len(annotations_data),
-        "num_categories": len(categories),
+        "images": data.get('images', []),
+        "categories": data.get('categories', []),
+        "annotations_by_image": annotations_by_image,
     }

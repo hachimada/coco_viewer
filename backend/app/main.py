@@ -6,6 +6,8 @@ from collections import defaultdict
 import json
 import os
 
+from app.services.coco_parser import process_coco_dataset
+
 app = FastAPI(
     title="COCO Viewer API",
     description="API for loading and interacting with COCO datasets.",
@@ -56,29 +58,20 @@ async def load_dataset(file: UploadFile = File(..., description="The COCO annota
         content = await file.read()
         data = json.loads(content)
 
-        # --- Data Processing Logic ---
-        annotations_by_image = defaultdict(lambda: defaultdict(list))
-        for ann in data.get('annotations', []):
-            # Keep only necessary fields to reduce payload size
-            processed_ann = {
-                'id': ann['id'],
-                'bbox': ann['bbox']
-            }
-            annotations_by_image[ann['image_id']][ann['category_id']].append(processed_ann)
+        processed_data = process_coco_dataset(data)
 
         # --- Return new data structure ---
-        return {
-            "images": data.get('images', []),
-            "categories": data.get('categories', []),
-            "annotations_by_image": annotations_by_image,
-        }
+        return processed_data
 
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON file.")
     except KeyError as e:
         raise HTTPException(status_code=400, detail=f"Invalid COCO format: Missing key {e}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+        import traceback
+        print(f"An unexpected error occurred: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
 
 @app.get("/", include_in_schema=False)
 def read_root():
