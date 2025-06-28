@@ -34,7 +34,7 @@ export const loadCocoDataset = async (file: File): Promise<CocoData> => {
         throw new Error('Invalid COCO file format: Missing required keys.');
     }
 
-    const categoriesWithColor: Category[] = (data.categories || []).map((cat: any, index: number) => ({
+    const categoriesWithColor: Category[] = (data.categories || []).map((cat: Category, index: number) => ({
         ...cat,
         color: `hsl(${(index * 137.508) % 360}, 60%, 55%)`,
     }));

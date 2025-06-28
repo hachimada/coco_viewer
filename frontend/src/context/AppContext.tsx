@@ -1,8 +1,9 @@
-import React, { createContext, useState, useMemo, useCallback, ReactNode, useContext } from 'react';
-import type { CocoData, Image, Category } from '../types';
+import React, { useState, useMemo, useCallback, ReactNode } from 'react';
+import type { CocoData, Image, Category, Annotation } from '../types';
 import { setImageDirectory as apiSetImageDirectory, loadCocoDataset as apiLoadCocoDataset } from '../api/coco';
+import { AppContext } from './useAppContext';
 
-interface AppContextType {
+export interface AppContextType {
     imageDir: string;
     setImageDir: (path: string) => void;
     file: File | null;
@@ -16,11 +17,9 @@ interface AppContextType {
     handleUpload: () => Promise<void>;
     hiddenCategories: Set<number>;
     toggleCategoryVisibility: (categoryId: number) => void;
-    annotationsForSelectedImage: Record<string, any[]>;
+    annotationsForSelectedImage: Record<string, Annotation[]>;
     categoriesForSelectedImage: Category[];
 }
-
-const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [imageDir, setImageDir] = useState<string>('');
@@ -81,7 +80,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const categoryIds = Object.keys(annotationsForSelectedImage).map(Number);
         const categoryIdSet = new Set(categoryIds);
         return cocoData.categories.filter(cat => categoryIdSet.has(cat.id));
-    }, [cocoData, annotationsForSelectedImage]);
+    }, [cocoData, selectedImage, annotationsForSelectedImage]);
 
     const value = {
         imageDir,
@@ -102,12 +101,4 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-};
-
-export const useAppContext = () => {
-    const context = useContext(AppContext);
-    if (context === undefined) {
-        throw new Error('useAppContext must be used within an AppProvider');
-    }
-    return context;
 };

@@ -37,7 +37,7 @@ export const usePanAndZoom = (options: PanAndZoomOptions = {}) => {
         setLastDragPosition({ x: e.clientX, y: e.clientY });
     }, [isDragging, lastDragPosition]);
 
-    const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
+    const handleWheel = useCallback((e: WheelEvent) => {
         e.preventDefault();
         const canvas = e.currentTarget;
         const rect = canvas.getBoundingClientRect();
@@ -54,9 +54,11 @@ export const usePanAndZoom = (options: PanAndZoomOptions = {}) => {
         setOffset({ x: newOffsetX, y: newOffsetY });
     }, [scale, offset]);
 
-    const reset = useCallback(() => {
-        setScale(initialScale);
-        setOffset(initialOffset);
+    const reset = useCallback((newValues: { scale: number; offset: { x: number; y: number } }) => {
+        if (newValues) {
+            setScale(newValues.scale);
+            setOffset(newValues.offset);
+        }
     }, []);
 
     return {

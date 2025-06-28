@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { UploadFile as UploadFileIcon, FolderOpen as FolderOpenIcon, Menu as MenuIcon } from '@mui/icons-material';
 import ImageViewer from './components/ImageViewer';
-import { useAppContext } from './context/AppContext';
+import { useAppContext } from './context/useAppContext';
 
 const App = () => {
     const {

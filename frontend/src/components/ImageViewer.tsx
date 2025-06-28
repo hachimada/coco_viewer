@@ -1,17 +1,16 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Box, CircularProgress, Typography } from '@mui/material';
-import type { AnnotationsForImage, Image, Category } from '../types';
+import type { AnnotationsForImage, Category } from '../types';
 import { usePanAndZoom } from '../hooks/usePanAndZoom';
 
 interface ImageViewerProps {
-    image: Image;
     annotationsForImage: AnnotationsForImage;
     categories: Category[];
     imageUrl: string;
     hiddenCategories: Set<number>;
 }
 
-const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, categories, imageUrl, hiddenCategories }) => {
+const ImageViewer: React.FC<ImageViewerProps> = ({ annotationsForImage, categories, imageUrl, hiddenCategories }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -133,6 +132,21 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, c
     }, [isLoading, drawCanvas, hiddenCategories, annotationsForImage, categories]);
 
     useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const wheelHandler = (e: WheelEvent) => {
+            handleWheel(e);
+        };
+
+        canvas.addEventListener('wheel', wheelHandler, { passive: false });
+
+        return () => {
+            canvas.removeEventListener('wheel', wheelHandler);
+        };
+    }, [handleWheel]);
+
+    useEffect(() => {
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
         return () => window.removeEventListener('resize', resizeCanvas);
@@ -158,7 +172,6 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ image, annotationsForImage, c
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseLeave}
                 onMouseMove={handleMouseMove}
-                onWheel={handleWheel}
                 style={{ 
                     display: isLoading || error ? 'none' : 'block',
                 }} 
