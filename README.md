@@ -11,27 +11,6 @@ A modern, performant web-based GUI application for visualizing COCO format datas
 - **High Performance:** Optimized data loading and rendering pipeline to ensure a smooth experience, even with large datasets. All annotations are fetched at once to eliminate lag when switching between images.
 - **Extensible Design:** The application is designed to be easily extended to support other tasks like segmentation and keypoint detection.
 
-## Project Structure
-
-```bash
-coco_viewer/
-├── backend/              # FastAPI application
-│   ├── .venv/              # Virtual environment managed by uv
-│   ├── app/
-│   │   ├── main.py         # API endpoint definitions
-│   │   └── services/
-│   │       └── coco_parser.py  # (Currently unused, for future extension)
-│   └── pyproject.toml      # Project metadata and dependencies
-├── frontend/             # React application
-│   ├── src/
-│   │   ├── components/
-│   │   │   └── ImageViewer.tsx
-│   │   └── App.tsx         # Main application component
-│   └── ...
-├── .gitignore
-└── README.md
-```
-
 ## Getting Started
 
 ### Prerequisites
